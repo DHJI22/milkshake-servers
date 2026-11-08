@@ -397,7 +397,7 @@ apply();render();
 var SB_URL="https://wsuphbkedwuknhrmwbrf.supabase.co";
 var SB_KEY="sb_publishable_d1nCUPGcjRZiwiCYQW6jsw_ojRyQgLB";
 var sb=null,authMode="in";
-try{if(window.supabase&&SB_URL.indexOf("https://")===0)sb=window.supabase.createClient(SB_URL,SB_KEY);}catch(e){}
+try{if(window.supabase&&SB_URL.indexOf("https://")===0)sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{lock:function(name,timeout,fn){return fn()}}});}catch(e){}
 function needSb(){if(!sb){toast("Нет связи с сервером, обнови страницу");return true}return false}
 
 var shown=20,allCount=0;
