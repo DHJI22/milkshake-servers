@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Диагностика</title>
+<style>
+body{font:16px system-ui,sans-serif;background:#151018;color:#f5e9f1;padding:16px;max-width:640px;margin:auto}
+h1{font-size:1.2rem}
+.r{padding:10px 12px;margin:8px 0;border-radius:12px;background:#241a2b;word-break:break-word}
+.ok{border-left:6px solid #2fbf8f}.bad{border-left:6px solid #ff5a7a}.wait{border-left:6px solid #888}
+</style></head><body>
+<h1>Диагностика Milkshake Servers</h1>
+<div id="out"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+var URL_="https://wsuphbkedwuknhrmwbrf.supabase.co",KEY="sb_publishable_d1nCUPGcjRZiwiCYQW6jsw_ojRyQgLB";
+var out=document.getElementById("out");
+function row(t){var d=document.createElement("div");d.className="r wait";d.textContent=t+" …";out.appendChild(d);
+  return function(ok,msg,ms){d.className="r "+(ok?"ok":"bad");d.textContent=(ok?"✅ ":"❌ ")+t+": "+msg+(ms!=null?" ("+ms+" мс)":"")}}
+function timed(p,sec){return Promise.race([p,new Promise(function(_,rej){setTimeout(function(){rej(new Error("ЗАВИСЛО дольше "+sec+" сек"))},sec*1000)})])}
+async function step(name,fn){var done=row(name),t=Date.now();
+  try{var m=await timed(fn(),12);done(true,m||"ок",Date.now()-t)}catch(e){done(false,e.message||String(e),Date.now()-t)}}
+(async function(){
+  await step("Библиотека Supabase загрузилась",async function(){
+    if(!window.supabase)throw new Error("не загрузилась (CDN недоступен)");return "ок"});
+  if(!window.supabase)return;
+  var sb=window.supabase.createClient(URL_,KEY);
+  await step("Сервер входа (auth health)",async function(){
+    var r=await fetch(URL_+"/auth/v1/health",{headers:{apikey:KEY}});return "статус "+r.status});
+  await step("Память браузера (localStorage)",async function(){
+    localStorage.setItem("_t","1");localStorage.removeItem("_t");
+    var k=Object.keys(localStorage).filter(function(x){return x.indexOf("sb-")===0});
+    return "пишется; ключи входа: "+(k.length?k.join(", "):"нет")});
+  await step("Список серверов (таблица servers)",async function(){
+    var r=await sb.from("servers").select("id").limit(1);
+    if(r.error)throw new Error(r.error.message);return "ок, строк: "+r.data.length});
+  var user=null;
+  await step("Сохранённый вход (сессия)",async function(){
+    var r=await sb.auth.getSession();if(r.error)throw new Error(r.error.message);
+    if(!r.data.session)throw new Error("сессии нет (не вошёл или браузер её не сохранил)");
+    user=r.data.session.user;
+    return user.email+", токен до "+new Date(r.data.session.expires_at*1000).toLocaleString()});
+  if(!user)return;
+  await step("Проверка админа (таблица admins)",async function(){
+    var r=await sb.from("admins").select("user_id").eq("user_id",user.id);
+    if(r.error)throw new Error(r.error.message);
+    if(!r.data.length)throw new Error("этого аккаунта нет в админах");return "ты админ"});
+  await step("Чтение поддержки (support_messages)",async function(){
+    var r=await sb.from("support_messages").select("id").limit(1);
+    if(r.error)throw new Error(r.error.message);return "ок, строк: "+r.data.length});
+})();
+</script></body></html>
