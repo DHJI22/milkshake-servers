@@ -23,7 +23,7 @@ async function step(name,fn){var done=row(name),t=Date.now();
   await step("Библиотека Supabase загрузилась",async function(){
     if(!window.supabase)throw new Error("не загрузилась (CDN недоступен)");return "ок"});
   if(!window.supabase)return;
-  var sb=window.supabase.createClient(URL_,KEY);
+  var sb=window.supabase.createClient(URL_,KEY,{auth:{lock:function(name,timeout,fn){return fn()}}});
   await step("Сервер входа (auth health)",async function(){
     var r=await fetch(URL_+"/auth/v1/health",{headers:{apikey:KEY}});return "статус "+r.status});
   await step("Память браузера (localStorage)",async function(){
