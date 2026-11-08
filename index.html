@@ -148,6 +148,7 @@ body.intro{overflow:hidden}
 .prev{display:none;width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:14px}
 .err{color:var(--err);font-size:.85rem;font-weight:700;min-height:1em}
 .cnt{text-align:right}
+.forgot{align-self:flex-end;border:0;background:none;color:var(--accent);font-weight:800;padding:0}
 .tgl{display:inline-block;margin-top:12px;background:#ffffff33;color:#fff;border-radius:999px;padding:9px 16px;font-weight:800;text-decoration:none}
 .chatfab{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:35;border:0;border-radius:999px;background:var(--accent);color:#fff;font-weight:800;padding:13px 18px;box-shadow:0 8px 22px color-mix(in srgb,var(--accent) 50%,transparent)}
 .chatfab .dot{display:none;position:absolute;top:-2px;right:-2px;width:14px;height:14px;border-radius:50%;background:var(--err);border:2px solid var(--bg)}
@@ -235,6 +236,7 @@ body.intro{overflow:hidden}
     <div class="seg" id="authSeg"><button data-v="in" class="on">Вход</button><button data-v="up">Регистрация</button></div>
     <input id="aMail" type="email" placeholder="Почта" autocomplete="email">
     <input id="aPass" type="password" placeholder="Пароль (от 6 символов)" autocomplete="current-password">
+    <button type="button" class="forgot" id="forgotBtn">Забыли пароль?</button>
     <button class="main" id="authGo">Войти</button>
     <div class="or">или через</div>
     <div class="soc">
@@ -278,6 +280,15 @@ body.intro{overflow:hidden}
 
     <div class="err" id="pErr" role="alert"></div>
     <button class="main" id="pGo" type="submit">Опубликовать</button>
+  </form>
+</div>
+<div class="modal" id="resM">
+  <form class="box" id="resForm" role="dialog" aria-label="Новый пароль">
+    <h2>Новый пароль</h2>
+    <input id="rPass" type="password" placeholder="Новый пароль (от 6 символов)" autocomplete="new-password">
+    <input id="rPass2" type="password" placeholder="Повтори пароль" autocomplete="new-password">
+    <div class="err" id="rErr" role="alert"></div>
+    <button class="main" id="rGo" type="submit">Сохранить пароль</button>
   </form>
 </div>
 <button class="chatfab" id="chatBtn"><span id="chatLbl">💬 Поддержка</span><span class="dot" id="chatDot"></span></button>
@@ -422,6 +433,8 @@ function errText(m){m=String(m||"");
   if(m.indexOf("Invalid login")>-1)return "Неверная почта или пароль";
   if(m.indexOf("already registered")>-1)return "Эта почта уже зарегистрирована";
   if(m.indexOf("Email not confirmed")>-1)return "Подтверди почту по письму";
+  if(m.indexOf("rate limit")>-1||m.indexOf("seconds")>-1)return "Слишком часто, попробуй через минуту";
+  if(m.indexOf("same as the old")>-1)return "Новый пароль должен отличаться от старого";
   return m||"Что-то пошло не так, попробуй ещё раз";}
 function showUser(u){
   user=u||null;
@@ -436,7 +449,29 @@ $("authM").onclick=function(e){if(e.target===this)authOpen(false)};
 $("authSeg").onclick=function(e){var b=e.target.closest("button");if(!b)return;authMode=b.dataset.v;
   document.querySelectorAll("#authSeg button").forEach(function(x){x.classList.toggle("on",x===b)});
   $("authGo").textContent=authMode==="up"?"Зарегистрироваться":"Войти";
-  $("aPass").autocomplete=authMode==="up"?"new-password":"current-password";};
+  $("aPass").autocomplete=authMode==="up"?"new-password":"current-password";
+  $("forgotBtn").style.display=authMode==="in"?"":"none";};
+$("forgotBtn").onclick=async function(){
+  if(needSb())return;
+  var email=$("aMail").value.trim();
+  if(!email){toast("Введи почту выше и снова нажми «Забыли пароль?»");$("aMail").focus();return}
+  var r=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.href.split("#")[0].split("?")[0]});
+  if(r.error){toast(errText(r.error.message));return}
+  toast("Если такая почта есть, мы отправили письмо со ссылкой для сброса пароля");
+};
+function resOpen(o){$("resM").classList.toggle("open",o);if(o){authOpen(false);$("rErr").textContent="";$("rPass").value="";$("rPass2").value=""}}
+$("resForm").onsubmit=async function(e){
+  e.preventDefault();
+  if(needSb())return;
+  var p=$("rPass").value,err=$("rErr");err.textContent="";
+  if(p.length<6){err.textContent="Пароль должен быть от 6 символов";return}
+  if(p!==$("rPass2").value){err.textContent="Пароли не совпадают";return}
+  var btn=$("rGo");btn.disabled=true;
+  var r=await sb.auth.updateUser({password:p});
+  btn.disabled=false;
+  if(r.error){err.textContent=errText(r.error.message);return}
+  resOpen(false);toast("Пароль изменён. Ты вошёл в аккаунт");
+};
 $("authGo").onclick=async function(){
   if(needSb())return;
   var email=$("aMail").value.trim(),pass=$("aPass").value;
@@ -460,7 +495,7 @@ document.querySelectorAll(".soc button").forEach(function(b){b.onclick=async fun
 $("outBtn").onclick=async function(){if(sb){await sb.auth.signOut();toast("Ты вышел")}};
 if(sb){
   sb.auth.getSession().then(function(r){showUser(r.data.session&&r.data.session.user)});
-  sb.auth.onAuthStateChange(function(ev,s){showUser(s&&s.user)});
+  sb.auth.onAuthStateChange(function(ev,s){showUser(s&&s.user);if(ev==="PASSWORD_RECOVERY")setTimeout(function(){resOpen(true)},0)});
   loadServers();
   setInterval(function(){if(!document.hidden)loadServers()},30000);
 }
