@@ -396,8 +396,17 @@ apply();render();
 /* ===== Supabase ===== */
 var SB_URL="https://wsuphbkedwuknhrmwbrf.supabase.co";
 var SB_KEY="sb_publishable_d1nCUPGcjRZiwiCYQW6jsw_ojRyQgLB";
+/* Хранилище входа: localStorage, запасной вариант sessionStorage и память */
+var memStore={};
+var authStore={
+  getItem:function(k){try{var v=localStorage.getItem(k);if(v!==null)return v}catch(e){}try{var t=sessionStorage.getItem(k);if(t!==null)return t}catch(e){}return memStore[k]||null},
+  setItem:function(k,v){memStore[k]=v;try{localStorage.setItem(k,v);return}catch(e){}try{sessionStorage.setItem(k,v)}catch(e){}},
+  removeItem:function(k){delete memStore[k];try{localStorage.removeItem(k)}catch(e){}try{sessionStorage.removeItem(k)}catch(e){}}
+};
+function storageOk(){try{localStorage.setItem("_t","1");localStorage.removeItem("_t");return true}catch(e){return false}}
+if(!storageOk())setTimeout(function(){toast("Браузер блокирует память сайта, вход не сохранится. Разреши данные сайта или открой в Chrome")},5000);
 var sb=null,authMode="in";
-try{if(window.supabase&&SB_URL.indexOf("https://")===0)sb=window.supabase.createClient(SB_URL,SB_KEY);}catch(e){}
+try{if(window.supabase&&SB_URL.indexOf("https://")===0)sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storage:authStore}});}catch(e){}
 function needSb(){if(!sb){toast("Нет связи с сервером, обнови страницу");return true}return false}
 
 var shown=20,allCount=0;
@@ -495,7 +504,7 @@ document.querySelectorAll(".soc button").forEach(function(b){b.onclick=async fun
 $("outBtn").onclick=async function(){if(sb){await sb.auth.signOut();toast("Ты вышел")}};
 if(sb){
   sb.auth.getSession().then(function(r){showUser(r.data.session&&r.data.session.user)});
-  sb.auth.onAuthStateChange(function(ev,s){showUser(s&&s.user);if(ev==="PASSWORD_RECOVERY")setTimeout(function(){resOpen(true)},0)});
+  sb.auth.onAuthStateChange(function(ev,s){setTimeout(function(){showUser(s&&s.user);if(ev==="PASSWORD_RECOVERY")resOpen(true)},0)});
   loadServers();
   setInterval(function(){if(!document.hidden)loadServers()},30000);
 }
@@ -588,7 +597,7 @@ function myName(){var md=(user&&user.user_metadata)||{};return md.name||md.full_
 function fmtT(t){return new Date(t).toLocaleString("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}
 async function checkAdmin(){
   isAdmin=false;
-  if(sb&&user){var r=await sb.from("admins").select("user_id").eq("user_id",user.id);isAdmin=!r.error&&!!(r.data&&r.data.length)}
+  if(sb&&user){var r=await sb.from("admins").select("user_id").eq("user_id",user.id);isAdmin=!r.error&&!!(r.data&&r.data.length);if(r.error)toast("Проверка админа: "+r.error.message);else if(!isAdmin)toast("Ты вошёл как "+(user.email||user.id)+", но в админах этого аккаунта нет")}
   $("chatLbl").textContent=isAdmin?"💬 Входящие":"💬 Поддержка";
   if(!user)chatOpen(false);
   pollDot();
