@@ -239,8 +239,7 @@ body.intro{overflow:hidden}
     <div class="or">или через</div>
     <div class="soc">
       <button data-p="google">Google</button>
-      <button data-p="custom:yandex">Яндекс</button>
-      <button data-p="custom:vk">VK</button>
+      <button data-p="custom:telegram">Telegram</button>
     </div>
     <div class="note">Нажимая кнопку, ты соглашаешься с правилами сайта.</div>
   </div>
@@ -451,7 +450,7 @@ $("authGo").onclick=async function(){
   if(authMode==="up"&&!(r.data&&r.data.session))toast("Проверь почту: отправили письмо для подтверждения");
   else toast(authMode==="up"?"Аккаунт создан":"Ты вошёл");
 };
-var SOCIAL_READY={"google":false,"custom:yandex":false,"custom:vk":false};
+var SOCIAL_READY={"google":false,"custom:telegram":true};
 document.querySelectorAll(".soc button").forEach(function(b){b.onclick=async function(){
   if(needSb())return;
   if(!SOCIAL_READY[b.dataset.p]){toast("Вход через "+b.textContent+" скоро будет доступен");return}
