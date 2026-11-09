@@ -90,6 +90,8 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .tg::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .2s}
 .tg.on{background:var(--accent)}.tg.on::after{transform:translateX(22px)}
 .reset{margin-top:16px;width:100%;border:2px solid var(--line);background:none;border-radius:14px;padding:11px;font-weight:800}
+.reset.admbtn{border:0;border-radius:999px;background:var(--accent);color:#fff;padding:13px 20px;box-shadow:0 6px 18px color-mix(in srgb,var(--accent) 40%,transparent);transition:filter .2s,transform .2s}
+.reset.admbtn:hover{filter:brightness(1.08);transform:translateY(-2px)}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translate(-50%,30px);background:var(--text);color:var(--bg);padding:12px 20px;border-radius:999px;font-weight:700;opacity:0;pointer-events:none;transition:.3s;z-index:60;max-width:92vw;text-align:center}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 #intro{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;overflow:hidden;color:#fff;background:linear-gradient(160deg,var(--accent),color-mix(in srgb,var(--accent) 45%,#7a6cff));clip-path:circle(150% at 50% 50%);transition:clip-path .9s cubic-bezier(.7,0,.2,1);animation:introFail 0s 7s forwards}
@@ -211,7 +213,6 @@ body.intro{overflow:hidden}
     <div class="hright">
       <button class="login" id="loginBtn">Войти</button>
       <div class="me" id="me"><span id="meName"></span><button id="outBtn">Выйти</button></div>
-      <button class="login" id="admBtn" style="display:none">🛡 Админ</button>
       <button class="iconbtn" id="openSet" aria-label="Открыть настройки">⚙️</button>
     </div>
   </header>
@@ -243,6 +244,7 @@ body.intro{overflow:hidden}
   <div class="row"><label>Размер карточек</label>
     <div class="seg" id="denseSeg"><button data-v="0">Обычные</button><button data-v="1">Компактные</button></div></div>
   <div class="row inline"><div><label>Анимации</label><br><small>Движение и эффекты</small></div><button class="tg" id="tgAnim" aria-label="Анимации"></button></div>
+  <button class="reset admbtn" id="admBtn" style="display:none">🛡 Админ-панель</button>
   <button class="reset" id="reset">Сбросить настройки</button>
 </aside>
 
@@ -744,7 +746,7 @@ async function admAct(frm,act){
   if(r.error){toast("Ошибка: "+r.error.message);return}
   toast("Готово");admOpenId=null;admLoad(true);loadServers();
 }
-$("admBtn").onclick=function(){admShow(true)};
+$("admBtn").onclick=function(){openP(false);admShow(true)};
 $("admX").onclick=function(){admShow(false)};
 $("admM").onclick=function(e){if(e.target===this)admShow(false)};
 $("admQ").oninput=function(){var v=this.value.trim();clearTimeout(admTimer);admTimer=setTimeout(function(){admQ=v;admLoad(true)},400)};
