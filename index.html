@@ -165,6 +165,21 @@ body.intro{overflow:hidden}
 .cform{display:flex;gap:8px}
 .cform input{flex:1;min-width:0}
 .back{align-self:flex-start;border:2px solid var(--line);background:none;border-radius:999px;padding:6px 14px;font-weight:800}
+.adm{width:min(560px,100%);height:min(720px,92vh)}
+.alist{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;min-height:0}
+.au{border:2px solid var(--line);border-radius:14px;padding:10px 14px;background:var(--surface)}
+.au.open{border-color:var(--accent)}
+.aut{display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer}
+.aut b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.au small{display:block;color:var(--muted);font-size:.78rem;font-weight:700;overflow-wrap:anywhere}
+.ab{font-size:.72rem;font-weight:800;padding:3px 10px;border-radius:999px;color:#fff;white-space:nowrap;flex:none}
+.ab.ban{background:var(--err)}.ab.mute{background:#ff8a4c}.ab.adm2{background:var(--ok)}
+.afrm{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.afrm input[type=text],.afrm select{border:2px solid var(--line);background:var(--bg);border-radius:12px;padding:10px 12px;width:100%}
+.abtns{display:flex;gap:8px;flex-wrap:wrap}
+.abtns button{flex:1;border:0;border-radius:12px;padding:10px;font-weight:800;color:#fff;background:var(--accent);min-width:90px}
+.abtns .bban{background:var(--err)}.abtns .bun{background:var(--ok)}
+.afrm label.ck{display:flex;gap:8px;align-items:center;font-size:.85rem;font-weight:700}
 .noanim *,.noanim *::after{animation:none!important;transition:none!important}
 @media (prefers-reduced-motion:reduce){*,*::after{animation:none!important;transition:none!important}}
 </style>
@@ -196,6 +211,7 @@ body.intro{overflow:hidden}
     <div class="hright">
       <button class="login" id="loginBtn">Войти</button>
       <div class="me" id="me"><span id="meName"></span><button id="outBtn">Выйти</button></div>
+      <button class="login" id="admBtn" style="display:none">🛡 Админ</button>
       <button class="iconbtn" id="openSet" aria-label="Открыть настройки">⚙️</button>
     </div>
   </header>
@@ -282,6 +298,13 @@ body.intro{overflow:hidden}
     <button class="main" id="pGo" type="submit">Опубликовать</button>
   </form>
 </div>
+<div class="modal" id="admM">
+  <div class="box adm" role="dialog" aria-label="Админ-панель">
+    <h2>Пользователи <button type="button" class="iconbtn" id="admX" aria-label="Закрыть">✕</button></h2>
+    <input id="admQ" type="search" placeholder="Поиск по почте или имени" autocomplete="off">
+    <div class="alist" id="admList"></div>
+  </div>
+</div>
 <div class="modal" id="resM">
   <form class="box" id="resForm" role="dialog" aria-label="Новый пароль">
     <h2>Новый пароль</h2>
@@ -357,7 +380,7 @@ function render(){
     var dots=own?'<div class="dots"><button class="dotbtn" data-menu="'+esc(s.id)+'" aria-label="Меню сервера">⋮</button><div class="menu" id="m'+esc(s.id)+'"><button data-del="'+esc(s.id)+'">🗑 Удалить</button></div></div>':"";
     return '<article class="card'+(s.id===freshId?' fresh':'')+'">'+photo+'<div class="top"><h3>Сервер '+esc(s.num)+'</h3><span class="type">'+esc(GAMES[s.game]||"Adopt Me")+'</span>'+dots+'</div><p>'+esc(s.description)+'</p><div class="meta"><span>'+esc(s.author||"Игрок")+'</span><span data-t="'+t+'">'+ago(t)+'</span></div>'+join+'</article>';
   }).join("");
-  $("grid").innerHTML=html||'<div class="empty">'+(servers.length?"Ничего не найдено. Измени поиск.":"Пока нет серверов. Будь первым: нажми «Опубликовать сервер».")+'</div>';
+  $("grid").innerHTML=html||(myMod&&myMod.status==="mute"?'<div class="empty">'+esc(muteText())+'</div>':'<div class="empty">'+(servers.length?"Ничего не найдено. Измени поиск.":"Пока нет серверов. Будь первым: нажми «Опубликовать сервер».")+'</div>');
   if(list.length&&servers.length<allCount)$("grid").insertAdjacentHTML("beforeend",'<div class="empty"><button class="post" id="moreBtn">Показать ещё</button></div>');
   $("sCount").textContent=allCount||servers.length;
   freshId=null;
@@ -371,7 +394,7 @@ setInterval(function(){document.querySelectorAll("[data-t]").forEach(function(e)
 $("q").addEventListener("input",function(e){query=e.target.value.trim().toLowerCase();render();});
 function openP(o){$("panel").classList.toggle("open",o);$("veil").classList.toggle("open",o);}
 $("openSet").onclick=function(){openP(true)};$("closeSet").onclick=function(){openP(false)};$("veil").onclick=function(){openP(false)};
-document.addEventListener("keydown",function(e){if(e.key==="Escape"){openP(false);authOpen(false);pubOpen(false);chatOpen(false)}});
+document.addEventListener("keydown",function(e){if(e.key==="Escape"){openP(false);authOpen(false);pubOpen(false);chatOpen(false);admShow(false)}});
 function apply(){
   var r=document.documentElement;
   r.style.setProperty("--accent",S.accent);r.style.setProperty("--r",S.radius+"px");r.style.setProperty("--pad",S.dense?"12px":"18px");
@@ -433,6 +456,7 @@ function errText(m){m=String(m||"");
   if(m.indexOf("Invalid login")>-1)return "Неверная почта или пароль";
   if(m.indexOf("already registered")>-1)return "Эта почта уже зарегистрирована";
   if(m.indexOf("Email not confirmed")>-1)return "Подтверди почту по письму";
+  if(m.toLowerCase().indexOf("banned")>-1)return "Аккаунт заблокирован. Вопросы: наш телеграм канал";
   if(m.indexOf("rate limit")>-1||m.indexOf("seconds")>-1)return "Слишком часто, попробуй через минуту";
   if(m.indexOf("same as the old")>-1)return "Новый пароль должен отличаться от старого";
   return m||"Что-то пошло не так, попробуй ещё раз";}
@@ -441,7 +465,7 @@ function showUser(u){
   $("loginBtn").style.display=u?"none":"";
   $("me").style.display=u?"flex":"none";
   if(u){var md=u.user_metadata||{};$("meName").textContent=md.name||md.full_name||(u.email||"").split("@")[0]||"Игрок";}
-  render();checkAdmin();
+  render();checkAdmin();loadMyMod();
 }
 $("loginBtn").onclick=function(){authOpen(true)};
 $("authX").onclick=function(){authOpen(false)};
@@ -516,6 +540,7 @@ function syncGame(){
 $("postBtn").onclick=function(){
   if(needSb())return;
   if(!user){toast("Чтобы опубликовать сервер, войди в аккаунт");authOpen(true);return}
+  if(myMod&&myMod.status==="mute"){alert(muteText());return}
   pubOpen(true);
 };
 $("pubX").onclick=function(){pubOpen(false)};
@@ -589,6 +614,8 @@ function fmtT(t){return new Date(t).toLocaleString("ru-RU",{day:"2-digit",month:
 async function checkAdmin(){
   isAdmin=false;
   if(sb&&user){var r=await sb.from("admins").select("user_id").eq("user_id",user.id);isAdmin=!r.error&&!!(r.data&&r.data.length)}
+  $("admBtn").style.display=isAdmin?"":"none";
+  if(!isAdmin)admShow(false);
   $("chatLbl").textContent=isAdmin?"💬 Входящие":"💬 Поддержка";
   if(!user)chatOpen(false);
   pollDot();
@@ -661,6 +688,71 @@ $("chatForm").onsubmit=async function(e){
   inp.disabled=false;
   if(r.error){toast(/Слишком/.test(r.error.message)?"Слишком часто, подожди немного":"Не удалось отправить");return}
   inp.value="";chatFirst=true;chatRefresh();inp.focus();
+};
+
+/* ===== Наказания: что видит сам пользователь ===== */
+var myMod=null;
+function muteText(){return "Ты в муте до "+fmtT(myMod.until)+": не можешь публиковать и смотреть серверы. Причина: "+myMod.reason}
+async function loadMyMod(){
+  myMod=null;
+  if(!sb||!user){render();return}
+  var r=await sb.from("user_moderation").select("*").eq("user_id",user.id).maybeSingle();
+  var d=r.data;
+  if(d&&(d.status==="ban"||(d.status==="mute"&&d.until&&new Date(d.until)>new Date())))myMod=d;
+  if(myMod&&myMod.status==="ban"){var why=myMod.reason;myMod=null;await sb.auth.signOut();alert("Твой аккаунт заблокирован.\nПричина: "+why);return}
+  await loadServers();render();
+}
+
+/* ===== Админ-панель ===== */
+var admQ="",admOff=0,admUsers=[],admMore=false,admOpenId=null,admTimer=null;
+function admShow(o){
+  $("admM").classList.toggle("open",o);
+  if(o&&isAdmin){admOpenId=null;admLoad(true)}
+}
+async function admLoad(reset){
+  if(!sb||!isAdmin)return;
+  if(reset){admOff=0;admUsers=[]}
+  var r=await sb.rpc("admin_list_users",{p_q:admQ,p_lim:30,p_off:admOff});
+  if(r.error){toast("Не удалось загрузить: "+r.error.message);return}
+  var rows=r.data||[];admMore=rows.length===30;admOff+=30;admUsers=admUsers.concat(rows);admRender();
+}
+function admRender(){
+  var h=admUsers.map(function(u){
+    var nm=u.name||u.email||("Telegram/ID "+String(u.id).slice(0,8));
+    var st=u.is_admin?'<span class="ab adm2">админ</span>':(u.status==="ban"?'<span class="ab ban">бан</span>':(u.status==="mute"?'<span class="ab mute">мут</span>':""));
+    var info=esc((u.email||"без почты")+" · "+(u.provider||"?")+" · рег. "+fmtT(u.created_at)+(u.last_sign_in_at?" · был "+fmtT(u.last_sign_in_at):"")+" · серверов: "+u.servers_count);
+    var why=u.status?'<small>Причина: '+esc(u.reason||"")+(u.status==="mute"&&u.until?" (до "+esc(fmtT(u.until))+")":"")+'</small>':"";
+    var form="";
+    if(admOpenId===u.id&&!u.is_admin){
+      form='<div class="afrm" data-id="'+esc(u.id)+'"><input type="text" class="ar" maxlength="200" placeholder="Причина (обязательно для бана и мута)">'+
+      '<select class="ad"><option value="1">Мут на 1 час</option><option value="24" selected>Мут на 24 часа</option><option value="168">Мут на 7 дней</option><option value="720">Мут на 30 дней</option></select>'+
+      '<label class="ck"><input type="checkbox" class="adel"> При бане удалить все его серверы</label>'+
+      '<div class="abtns"><button data-act="mute">Мут</button><button class="bban" data-act="ban">Бан</button>'+
+      (u.status?'<button class="bun" data-act="'+(u.status==="ban"?"unban":"unmute")+'">Снять '+(u.status==="ban"?"бан":"мут")+'</button>':"")+'</div></div>';
+    }
+    return '<div class="au'+(admOpenId===u.id?' open':'')+'"><div class="aut" data-u="'+esc(u.id)+'"><b>'+esc(nm)+'</b>'+st+'</div><small>'+info+'</small>'+why+form+'</div>';
+  }).join("")||'<div class="note">Никого не найдено.</div>';
+  if(admMore)h+='<button class="reset" id="admMore">Показать ещё</button>';
+  $("admList").innerHTML=h;
+}
+async function admAct(frm,act){
+  var id=frm.dataset.id,reason=frm.querySelector(".ar").value.trim(),hours=+frm.querySelector(".ad").value,del=frm.querySelector(".adel").checked;
+  if((act==="ban"||act==="mute")&&reason.length<3){toast("Укажи причину (минимум 3 символа)");return}
+  var names={ban:"забанить",mute:"замутить",unban:"снять бан с",unmute:"снять мут с"};
+  if(!confirm("Точно "+names[act]+" этого пользователя?"))return;
+  var r=await sb.rpc("admin_set_moderation",{p_target:id,p_action:act,p_reason:reason||null,p_hours:act==="mute"?hours:null,p_delete_servers:act==="ban"&&del});
+  if(r.error){toast("Ошибка: "+r.error.message);return}
+  toast("Готово");admOpenId=null;admLoad(true);loadServers();
+}
+$("admBtn").onclick=function(){admShow(true)};
+$("admX").onclick=function(){admShow(false)};
+$("admM").onclick=function(e){if(e.target===this)admShow(false)};
+$("admQ").oninput=function(){var v=this.value.trim();clearTimeout(admTimer);admTimer=setTimeout(function(){admQ=v;admLoad(true)},400)};
+$("admList").onclick=function(e){
+  if(e.target.closest("#admMore")){admLoad(false);return}
+  var b=e.target.closest("[data-act]");if(b){admAct(b.closest(".afrm"),b.dataset.act);return}
+  var t=e.target.closest("[data-u]");
+  if(t){admOpenId=admOpenId===t.dataset.u?null:t.dataset.u;admRender()}
 };
 
 /* ===== Заставка ===== */
